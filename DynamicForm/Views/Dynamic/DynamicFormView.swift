@@ -50,6 +50,24 @@ public struct DynamicFormView: View {
                             .tint(.green)
                             .disabled(!viewModel.isFormValid || viewModel.isSubmitting)
                             .opacity(viewModel.isFormValid ? 1 : 0.5)
+
+                            if let submission = viewModel.lastSubmissionJSON {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Submission JSON")
+                                        .font(.headline)
+                                        .foregroundColor(themeTextColor)
+
+                                    ScrollView(.horizontal) {
+                                        Text(submission)
+                                            .font(.callout)
+                                            .foregroundColor(.primary)
+                                            .padding(8)
+                                            .background(Color(.secondarySystemBackground))
+                                            .cornerRadius(8)
+                                    }
+                                }
+                                .padding(.top, 12)
+                            }
                         }
                         .padding()
                         .foregroundColor(themeTextColor)

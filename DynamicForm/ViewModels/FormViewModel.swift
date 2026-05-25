@@ -11,6 +11,8 @@ public final class FormViewModel: ObservableObject {
     @Published public private(set) var errorMessage: String? = nil
     @Published public private(set) var isFormValid: Bool = false
     @Published public private(set) var isSubmitting: Bool = false
+    @Published public private(set) var lastSubmissionJSON: String? = nil
+    @Published public private(set) var lastSubmission: [String: Any] = [:]
     @Published public private(set) var touchedFields: Set<String> = []
     @Published public private(set) var showErrors: Bool = false
 
@@ -93,7 +95,52 @@ public final class FormViewModel: ObservableObject {
     public func submit() -> Bool {
         showErrors = true
         validateForm()
-        guard isFormValid else { return false }
+        guard isFormValid, let form = form else { return false }
+
+        // Build submission payload from current state
+        var payload: [String: Any] = [:]
+        payload["form_title"] = form.formTitle
+
+        var fieldsPayload: [String: Any] = [:]
+        for entry in form.fields {
+            let field = entry.field
+            switch field {
+            case let text as TextFieldModel:
+                fieldsPayload[field.id] = fieldValues[field.id] ?? ""
+            case let dropdown as DropdownFieldModel:
+                if dropdown.allowMultiple {
+                    fieldsPayload[field.id] = multiSelectValues[field.id] ?? []
+                } else {
+                    fieldsPayload[field.id] = fieldValues[field.id] ?? ""
+                }
+            case let checkbox as CheckboxFieldModel:
+                fieldsPayload[field.id] = checkboxValues[field.id] ?? false
+            case let color as ColorPickerFieldModel:
+                fieldsPayload[field.id] = fieldValues[field.id] ?? ""
+            case let unknown as UnknownFieldModel:
+                var rd: [String: Any] = [:]
+                for (k, v) in unknown.rawData {
+                    rd[k] = v.value
+                }
+                fieldsPayload[field.id] = ["raw_type": unknown.rawType, "raw_data": rd]
+            default:
+                fieldsPayload[field.id] = ""
+            }
+        }
+
+        payload["fields"] = fieldsPayload
+
+        // Serialize to pretty JSON for UI + console
+        if JSONSerialization.isValidJSONObject(payload),
+           let data = try? JSONSerialization.data(withJSONObject: payload, options: .prettyPrinted),
+           let jsonString = String(data: data, encoding: .utf8) {
+            lastSubmissionJSON = jsonString
+        } else {
+            lastSubmissionJSON = nil
+        }
+
+        lastSubmission = payload
+        print("Form submission:\n", lastSubmission)
 
         isSubmitting = true
         defer { isSubmitting = false }
